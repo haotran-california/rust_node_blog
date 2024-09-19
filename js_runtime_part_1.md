@@ -1,13 +1,25 @@
-What is V8?
+# JavaScript Runtime from Scratch Part 1
+By Hao Tran
 
-V8 is an engine which executes JavaScript code. In other words V8 is a compiler which takes JavaScript,
-compiles it to C, then executes it. V8 is embedded in the browser so that JavaScript can be run in the broswer.
-However you cannot run JavaScript on your local machine without downloading V8. Most commonly this is done
-through downloading Node which has V8 embedded. So because V8 is embedded in the broswer and in Node you can
-run JavaScript in both places.
+### Preface 
 
-What can V8 do alone? How is JavaScript extended with runtimes like Node?
+This article will focus on the major V8 concepts which are involved in building a Javascript Runtime. Many of these concepts will be illustrated with diagrams 
+in order to build mental models which aid in interpreting the V8 source code. So for now, the structure of each article is source code followed by diagrams.   
+My personal opinion is that these diagrams are easy to remember as broad concepts which encapsulate complex technical details. With that being said here 
+are the concepts which we will be exploring today. 
 
+### Main Concepts 
+
+1. ** V8 Infrastructure: Platform, Isolate, Context ** 
+2. ** V8 Bridge: JavaScript <---> Rust **
+3. ** Handles **
+
+Roughly, the V8 Infrastructure concepts map to the `//INITIALIZE V8` section of the code snippet while the V8 Bridge and V8 Handles concepts map to the 
+`//READ FILE` and `//EXECUTE CODE` sections combined. You'll notice that the code below is written in Rust and draws from the `rusty_v8` library. This is 
+due to the ease of embedding V8 in Rust applications which is a one line download as opposed with compiling an OS specific binary in C++ with sparse documentation. 
+If this is your first time reading Rust I encourage you to keep reading nonetheless and the concepts, diagrams, and most of the writing with be language agonostic. 
+
+Now the code below sets up a V8 enviorment, reads in a JavaScript file which returns a string, executes this file, and prints out the result in the console. 
 
 `01_execute_plain_javascript.rs`
 
@@ -46,9 +58,7 @@ println!("Results: {}", result.to_rust_string_lossy(scope));
 }
 ```
 
-This example is uses `rusty\_v8` the rust bindings of V8.
-
-### One to Many: Platforms, Isolates, and Contexts 
+### V8 Infrastructure: Platform, Isolate, and Context 
 
 1. **Platform**
    The V8 platform is the interface that manages operating system-level resources such as threads and tasks. It provides the execution environment for isolates to run.
@@ -59,24 +69,31 @@ This example is uses `rusty\_v8` the rust bindings of V8.
 3. **Context**
    A context is an execution environment within an isolate. It holds the global object. This global holds associated variables, functions, and objects. Each context is separate from other contexts within the same isolate, meaning they have distinct global states and do not share variables or functions.
 
-![Diagram showing one-to-many relationships](https://drive.google.com/uc?export=view&id=1niBflxHv63q8lQf3y4tfzhKbRlVSQ8TP
-)
+## One-to-Many Relationship
+![Diagram showing one-to-many relationships](https://drive.google.com/uc?export=view&id=1niBflxHv63q8lQf3y4tfzhKbRlVSQ8TP)
 
-Explictly stated from the diagram above. One platform can have multiple isolates. One isolate can have mutliple contexts. Note that each isolate may only ever have a single 
-active context. Although one context may be switch from one to another through "entering context scope" which will be refered to later. The important idea, in the case of 
-using V8 to create a JavaScript runtime, is that Node primarly deals with a single isolate in a single context. Nevertheless it is interesting to keep this idea in mind as 
-reference. For example one application in the broswer is spinning up an isolate for each tab. 
+There is only ever a single platform. Furthermore, one platform can have multiple isolates and one isolate can have mutliple contexts. Note that each isolate may only have a single 
+**active context**, although an isolate may may switch from one context to another through **entering context scope**. This will be refered to shortly in the next main concept section. 
+The important idea here is framing the isolate object and context object as they will be commonly manipulated by the programmer. Furthermore we have two examples of how a program which 
+embedds V8 can leverage this structure. 
 
-![Diagram showing isolates-to-tabs mapping](./images/Isolates-To-Tabs.png)
-Note this diagram is taken from Felipe Mantilla on his Medium aritcle linked [here](https://medium.com/@felipemantillagomez/recreating-nodejs-from-scratch-chapter-3-v8-hello-world-main-concepts-explained-58d58676db36)
+## EX 1. Chrome 
+![V8 in Chrome](./images/V8_Chrome.png)
+
+Notice that Chrome pairs each tab with an isolate illustrating the developers intended use of spawing multiple isolates from a platform. 
+
+## EX 2. Node 
+![V8 in Node](./images/V8_Node.png)
+
+Notice that Node has a single isolate and a single context.  
+
+These diagrams come directly from Felipe Mantilla with my own minor modification. His Medium aritcle is linked [here](https://medium.com/@felipemantillagomez/recreating-nodejs-from-scratch-chapter-3-v8-hello-world-main-concepts-explained-58d58676db36)
 
 ### V8 Bridge: JavaScript <---> Rust 
 
 There is a bijection between JavaScript, as provided via V8 handles, and Rust. This means any code written in JavaScript can be transformed into code which can be manipulated 
 by Rust. This also goes in the other direction. Any code written in Rust can be transformed in to code which can be manipulated by JavaScript. There are caveuats however this 
 is the correct mental model for working with V8. Within the code snippet above we instances of converting strings in both directions.  
-
-
 
 ##### Rust ---> JavaScript 
 Lets take a deeper look into the code below: 
