@@ -4,22 +4,21 @@ By Hao Tran
 ### Preface 
 
 This article will focus on the major V8 concepts which are involved in building a Javascript Runtime. Many of these concepts will be illustrated with diagrams 
-in order to build mental models which aid in interpreting the V8 source code. So for now, the structure of each article is source code followed by diagrams.   
+in order to build mental models which aid in interpreting the V8 source code. So for now, the structure of each article is source code followed by diagrams.
 My personal opinion is that these diagrams are easy to remember as broad concepts which encapsulate complex technical details. With that being said here 
 are the concepts which we will be exploring today. 
 
 ### Main Concepts 
 
-1. ** V8 Infrastructure: Platform, Isolate, Context ** 
-2. ** V8 Bridge: JavaScript <---> Rust **
-3. ** Handles **
+1. **V8 Infrastructure: Platform, Isolate, Context** 
+2. **V8 Bridge: JavaScript <---> Rust**
+3. **Handles**
 
-Roughly, the V8 Infrastructure concepts map to the `//INITIALIZE V8` section of the code snippet while the V8 Bridge and V8 Handles concepts map to the 
-`//READ FILE` and `//EXECUTE CODE` sections combined. You'll notice that the code below is written in Rust and draws from the `rusty_v8` library. This is 
-due to the ease of embedding V8 in Rust applications which is a one line download as opposed with compiling an OS specific binary in C++ with sparse documentation. 
-If this is your first time reading Rust I encourage you to keep reading nonetheless and the concepts, diagrams, and most of the writing with be language agonostic. 
+Now lets take a look at a code below. 
 
-Now the code below sets up a V8 enviorment, reads in a JavaScript file which returns a string, executes this file, and prints out the result in the console. 
+In short, the program sets up a V8 enviorment, reads a JavaScript file into string, executes this file, and logs the result in the console. 
+Lets assume the JavaScript which we execute will be simply vanilla JavaScript with no extensions. We will learn how to extend JavaScript beyond 
+ECMAScript in the next article.  
 
 `01_execute_plain_javascript.rs`
 
@@ -58,7 +57,12 @@ println!("Results: {}", result.to_rust_string_lossy(scope));
 }
 ```
 
-### V8 Infrastructure: Platform, Isolate, and Context 
+The main concepts roughly map to the various sections of the program. V8 Infrastructure maps to the `//INITIALIZE V8` section. While the V8 Bridge and 
+V8 Handles concepts maps to the `//READ FILE` and `//EXECUTE CODE` sections combined. You'll notice that the code below is written in Rust and draws from the `rusty_v8` 
+library. This is due to the ease of embedding V8 in Rust applications which is a one line download. In contrast embedding in C++ programs requires an extensive process.  
+If this is your first time reading Rust I encourage you to keep reading as the concepts, diagrams, and most of the writing will be language agonostic. 
+
+## V8 Infrastructure: Platform, Isolate, and Context 
 
 1. **Platform**
    The V8 platform is the interface that manages operating system-level resources such as threads and tasks. It provides the execution environment for isolates to run.
@@ -69,7 +73,7 @@ println!("Results: {}", result.to_rust_string_lossy(scope));
 3. **Context**
    A context is an execution environment within an isolate. It holds the global object. This global holds associated variables, functions, and objects. Each context is separate from other contexts within the same isolate, meaning they have distinct global states and do not share variables or functions.
 
-## One-to-Many Relationship
+### One-to-Many Relationship
 ![Diagram showing one-to-many relationships](https://drive.google.com/uc?export=view&id=1niBflxHv63q8lQf3y4tfzhKbRlVSQ8TP)
 
 There is only ever a single platform. Furthermore, one platform can have multiple isolates and one isolate can have mutliple contexts. Note that each isolate may only have a single 
@@ -77,25 +81,25 @@ There is only ever a single platform. Furthermore, one platform can have multipl
 The important idea here is framing the isolate object and context object as they will be commonly manipulated by the programmer. Furthermore we have two examples of how a program which 
 embedds V8 can leverage this structure. 
 
-## EX 1. Chrome 
+### EX 1) Chrome 
 ![V8 in Chrome](./images/V8_Chrome.png)
 
 Notice that Chrome pairs each tab with an isolate illustrating the developers intended use of spawing multiple isolates from a platform. 
 
-## EX 2. Node 
+### EX 2) Node 
 ![V8 in Node](./images/V8_Node.png)
 
 Notice that Node has a single isolate and a single context.  
 
 These diagrams come directly from Felipe Mantilla with my own minor modification. His Medium aritcle is linked [here](https://medium.com/@felipemantillagomez/recreating-nodejs-from-scratch-chapter-3-v8-hello-world-main-concepts-explained-58d58676db36)
 
-### V8 Bridge: JavaScript <---> Rust 
+## V8 Bridge: JavaScript <---> Rust 
 
 There is a bijection between JavaScript, as provided via V8 handles, and Rust. This means any code written in JavaScript can be transformed into code which can be manipulated 
 by Rust. This also goes in the other direction. Any code written in Rust can be transformed in to code which can be manipulated by JavaScript. There are caveuats however this 
 is the correct mental model for working with V8. Within the code snippet above we instances of converting strings in both directions.  
 
-##### Rust ---> JavaScript 
+### Rust ---> JavaScript 
 Lets take a deeper look into the code below: 
 
 ```rust 
@@ -119,8 +123,8 @@ in which JavaScript is stored and clear it from the heap.
 
 
 
-##### JavaScript ---> Rust 
-Lets now explore the other direction. Suppose foo.js is a script which returns a JavaScript `String`. 
+### JavaScript ---> Rust 
+Lets now explore the other direction. Lets define `foo.js` as a script which returns a JavaScript *String*. 
 
 `foo.js`
 ```javascript
@@ -141,11 +145,17 @@ println!("Results: {}", result.to_rust_string_lossy(scope));
 
 ```
 
-Firstly we compile the string containing the code into a `v8::Script` object. This script object is now run in order to produce a `v8::Value`. In this case our script will 
-return a JavaScript String. Commonly, in other cases, the compiled script will return a JavaScript Object. Since the resulting value is a string it can be transformed into 
-a `v8::Local<v8::String>`. Finally, with this local string handle we can call the method `to_rust_string_lossy` in order to convert into a Rust String. Observe that we have gone
-from Script -> Value -> Local::String -> (Rust) String. Each of the methods: compile, run, to_string, and to_rust_string_lossy were associated with these transformations.    
-Much of v8 programming, from my limited experience, feels like following these chains of transformations.
+Note that the program will log `"Results: Hello World!"`.
+
+Firstly the JavaScript String which contains the code is compiled into a `v8::Script` object. This script object is now run in order to produce a `v8::Value`. In this case our script will 
+return a JavaScript String. Note that in other cases the compiled script will commonly return a JavaScript Object. Since the resulting value is a string it can be transformed into 
+a `v8::Local<v8::String>`. Finally, with this local string handle we can call the method `to_rust_string_lossy` in order to convert into a Rust String. 
+
+Observe the following transformation:  
+Script -> Value -> Local::String -> (Rust) String. 
+
+Each of the methods: compile, run, to_string, and to_rust_string_lossy were associated with these transformations. Much of v8 programming, from my limited experience, deals with following these 
+chains of transformations.
 
 The concept of a bridge was inspired by Mayank Choubey's book [Deno Internals](https://choubey.gitbook.io/internals-of-deno). 
 
