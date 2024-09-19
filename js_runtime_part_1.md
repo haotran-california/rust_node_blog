@@ -20,7 +20,7 @@ In short, the program sets up a V8 enviorment, reads a JavaScript file into stri
 Lets assume the JavaScript which we execute will be simply vanilla JavaScript with no extensions. We will learn how to extend JavaScript beyond 
 ECMAScript in the next article.  
 
-`01_execute_plain_javascript.rs`
+`execute_plain_javascript.rs`
 
 ``` rust
 use rusty_v8 as v8; 
@@ -59,7 +59,7 @@ println!("Results: {}", result.to_rust_string_lossy(scope));
 
 The main concepts roughly map to the various sections of the program. V8 Infrastructure maps to the `//INITIALIZE V8` section. While the V8 Bridge and 
 V8 Handles concepts maps to the `//READ FILE` and `//EXECUTE CODE` sections combined. You'll notice that the code below is written in Rust and draws from the `rusty_v8` 
-library. This is due to the ease of embedding V8 in Rust applications which is a one line download. In contrast embedding in C++ programs requires an extensive process.  
+library. This is due to the ease of embedding V8 in Rust applications which is a one line download. In contrast embedding in C++ programs requires an extensive process. 
 If this is your first time reading Rust I encourage you to keep reading as the concepts, diagrams, and most of the writing will be language agonostic. 
 
 ## V8 Infrastructure: Platform, Isolate, and Context 
