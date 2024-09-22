@@ -191,7 +191,7 @@ The concept of a bridge was inspired by Mayank Choubey's book [Deno Internals](h
 Of these various objects, the most commonly created in programming with V8 is `Local`. 
 
 ### Instantiate Primatives 
-![Diagram showing static new function to create local handles](new_handles.png)
+![Diagram showing static new function to create local handles](./images/new_handles.png)
 
 This simple diagram shows some common primatives types which may be instantiated by the programmer to manipuate Javascript. Notice that a static function under some namespace N is called in 
 order to a return a handle of type N. In other words the `v8::Boolean::new()` returns `v8::Local<v8::Boolean>` which is straight forward. All primatives except for String return a local handle. 
@@ -204,7 +204,7 @@ Notice that the instantiation of these Javascript primatives all require a scope
 So why is a scope of `HandleScope` not passed in as the first arguement instead? Lets clarify with the following diagram.   
 
 ### Local Handles in A Context(s)
-![Diagram showing local handles within a context](local_handle_to_context.png)
+![Diagram showing local handles within a context](./images/local_handle_to_context.png)
 
 Recall the relationship between a isolate and a context. A single isolate can have multiple contexts. Therefore an isolate encapsulates the context(s). The handle scope is at that same encapsulation level
 as the isolate which is what allows it to have access to *all* local handles, despite the fact that the handles may be in different contexts. A `ContextScope` by definition ties some object or operation to 
