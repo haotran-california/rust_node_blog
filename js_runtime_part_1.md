@@ -4,9 +4,11 @@ By Hao Tran
 ### Preface 
 
 This article will focus on the major V8 concepts which are involved in building a Javascript Runtime. Many of these concepts will be illustrated with diagrams 
-in order to build mental models which aid in interpreting the V8 source code. So for now, the structure of each article is source code followed by diagrams.
-My personal opinion is that these diagrams are easy to remember as broad concepts which encapsulate complex technical details. With that being said here 
-are the concepts which we will be exploring today. 
+in order to build mental models which aid in interpreting the V8 source code. So for now, the structure of each article is some problem statement, followed by source code 
+which solves such problem, followed by diagrams which explain the main concepts and technical details. My personal opinion is that these diagrams are easy to remember as broad 
+concepts which encapsulate complex technical details. 
+
+With that being said here are the concepts which we will be exploring today. 
 
 ### Main Concepts 
 
@@ -14,14 +16,27 @@ are the concepts which we will be exploring today.
 2. **V8 Bridge: JavaScript <---> Rust**
 3. **Handles**
 
-Now lets take a look at a code below. 
 
 In short, the program sets up a V8 enviorment, reads a JavaScript file into string, executes this file, and logs the result in the console. 
 Lets assume the JavaScript which we execute will be simply vanilla JavaScript with no extensions. We will learn how to extend JavaScript beyond 
 ECMAScript in the next article.  
 
-`execute_plain_javascript.rs`
+### Main Feature
 
+The program which we will be analyzing today, `execute_vanilla_javascript.rs` will solve the following problem. How to run a vanilla Javascript file, 
+in this case `foo.js`, with an embedded V8 instance?  
+
+Now lets take a look at a code below. 
+
+`foo.js`
+``` Javascript 
+let greeting = "Hello World!";
+greeting; 
+
+```
+Note that when this file is executed the return value will be `"Hello World"`.
+
+`execute_vanilla_javascript.rs`
 ``` rust
 use rusty_v8 as v8; 
 
@@ -152,11 +167,78 @@ return a JavaScript String. Note that in other cases the compiled script will co
 a `v8::Local<v8::String>`. Finally, with this local string handle we can call the method `to_rust_string_lossy` in order to convert into a Rust String. 
 
 Observe the following transformation:  
-Script -> Value -> Local::String -> (Rust) String. 
+Script -> Value -> Local\<v8::String\> -> (Rust) String. 
 
 Each of the methods: compile, run, to_string, and to_rust_string_lossy were associated with these transformations. Much of v8 programming, from my limited experience, deals with following these 
 chains of transformations.
 
 The concept of a bridge was inspired by Mayank Choubey's book [Deno Internals](https://choubey.gitbook.io/internals-of-deno). 
 
+## V8 Handles and Scopes
+
+1. **HandleScope**  
+   A HandleScope is a memory management mechanism in V8 that temporarily holds references to objects. When the scope is exited, the handles created within it are automatically deallocated.
+
+2. **Local**  
+   A Local handle is a temporary reference to a V8 object, valid only within a HandleScope. Once the scope is exited, the handle becomes invalid.
+
+3. **Persistent**  
+   A Persistent handle is a long-lived reference to a V8 object. It remains valid outside of HandleScope and must be explicitly disposed of to free memory.
+
+4. **ContextScope**  
+   A ContextScope ties operations to a specific V8 context. It ensures all operations occur in the correct context and restores the previous context when exited.
+
+Of these various objects, the most commonly created in programming with V8 is `Local`. 
+
+### Instantiate Primatives 
+![Diagram showing static new function to create local handles](new_handles.png)
+
+This simple diagram shows some common primatives types which may be instantiated by the programmer to manipuate Javascript. Notice that a static function under some namespace N is called in 
+order to a return a handle of type N. In other words the `v8::Boolean::new()` returns `v8::Local<v8::Boolean>` which is straight forward. All primatives except for String return a local handle. 
+Notice the `v8::String::new()` string returns `Option<v8::Local<v8::String>>`. This `Option` type is an enum built into Rust which can evaluate to either `Some` or `None`. In other words the return
+value of calling the new method may return the local handle of type string or nothing. A case in which this method may return `None` is when the input string is too large and not enough memory 
+is available to be allocated. Although Rust itself is not the focus of this article, as there is much available documentation on Rust, explainations like these are warrented when certain concepts 
+cannot be explained without understanding the details of Rust.  
+
+Notice that the instantiation of these Javascript primatives all require a scope as the first arguement. This scope is of type `ContextScope`. By definition all local handles belong to a handle scope. 
+So why is a scope of `HandleScope` not passed in as the first arguement instead? Lets clarify with the following diagram.   
+
+### Local Handles in A Context(s)
+![Diagram showing local handles within a context](local_handle_to_context.png)
+
+Recall the relationship between a isolate and a context. A single isolate can have multiple contexts. Therefore an isolate encapsulates the context(s). The handle scope is at that same encapsulation level
+as the isolate which is what allows it to have access to *all* local handles, despite the fact that the handles may be in different contexts. A `ContextScope` by definition ties some object or operation to 
+a particular context. In the case of creating local handles, with ContextScopeA and ContextScopeB on hand, the programmer can choose to create a handle that belongs to either ContextA or ContextB.    
+
+So how does the programmer aquire ContextScopeA and ContextScopeB? 
+
+Entering a context scope can be simply thought of as calling the new context scope static function.
+
+```rust 
+let handle_scope = &mut v8::HandleScope::new(isolate);
+let context_a  = v8::Context::new(handle_scope);
+let scope_a = &mut v8::ContextScope::new(handle_scope, context_a); //active context
+
+
+//Operations within scopeA... 
+
+let context_b  = v8::Context::new(handle_scope);
+let scope_b = &mut v8::ContextScope::new(handle_scope, context_b) //active context
+
+
+//Operations within scopeB... 
+
+
+```
+
+As soon as `ContextScope::new()` is called, the scope which is returned from that function becomes the *active context*. What that means is that 
+all newly created objects, think local handles, and operations, think executing a script, now take place within this particular context. Again, 
+there can only be one active context at a particular time. At the beginning of the snippet ScopeA is active and at the end ScopeB is the active context.
+Otherwise the code to *enter a context* is pretty straight foward. 
+
+On a related note, a program can contain multiple handle scopes. This will come up in callback functions. Otherwise these are the concepts related to 
+scopes and handles. 
+
+
+### Conclusion
 In the next article we will explore how to not just run JavaScript code but also extend it.
