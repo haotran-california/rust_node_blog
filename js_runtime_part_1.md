@@ -4,9 +4,9 @@ By Hao Tran
 ### Preface 
 
 This article will focus on the major V8 concepts which are involved in building a Javascript Runtime. Many of these concepts will be illustrated with diagrams 
-in order to build mental models which aid in interpreting the V8 source code. So for now, the structure of each article is some problem statement, followed by source code 
-which solves such problem, followed by diagrams which explain the main concepts and technical details. My personal opinion is that these diagrams are easy to remember as broad 
-concepts which encapsulate complex technical details. 
+in order to build mental models which aid in interpreting the V8 source code. So for now, the structure of each article is some main feature, followed by source code 
+which implements the main feature, followed by diagrams which explain the main concepts and technical details involved in implementing the main feature. My personal 
+opinion is that these diagrams are easy to remember as broad concepts which encapsulate complex technical details. 
 
 With that being said here are the concepts which we will be exploring today. 
 
@@ -16,17 +16,12 @@ With that being said here are the concepts which we will be exploring today.
 2. **V8 Bridge: JavaScript <---> Rust**
 3. **Handles**
 
-
-In short, the program sets up a V8 enviorment, reads a JavaScript file into string, executes this file, and logs the result in the console. 
-Lets assume the JavaScript which we execute will be simply vanilla JavaScript with no extensions. We will learn how to extend JavaScript beyond 
-ECMAScript in the next article.  
-
 ### Main Feature
 
 The program which we will be analyzing today, `execute_vanilla_javascript.rs` will solve the following problem. How to run a vanilla Javascript file, 
 in this case `foo.js`, with an embedded V8 instance?  
 
-Now lets take a look at a code below. 
+Now lets take a look at the `foo.js`, the Javascript script, and `execute_vanilla_javascript` the program which contains the V8 embedding. 
 
 `foo.js`
 ``` Javascript 
@@ -136,21 +131,13 @@ Firstly we read a small JavaScript file into a Rust `String`. Now with the file 
 and the context in which it was created, hence `ContextScope` being one of the parameters. When the cleanup routine is initiated v8 will use this handle to track every instance 
 in which JavaScript is stored and clear it from the heap.  
 
+Observe the following transformation: 
+Rust `String` ->  `Local\<v8::String\>`
+
 
 
 ### JavaScript ---> Rust 
-Lets now explore the other direction. Lets define `foo.js` as a script which returns a JavaScript *String*. 
-
-`foo.js`
-```javascript
-let greeting = "Hello World!";
-greeting; 
-
-```
-
-The final line of this script is an expression which returns  `"Hello World!"`.  
-
-With this in mind lets consider the code below: 
+Lets now explore the other direction. Recall `foo.js` as a script which returns a JavaScript String `"Hello World!"`. With this in mind lets consider the code below: 
 
 ```rust 
 let script = v8::Script::compile(scope, code, None).unwrap();
@@ -167,7 +154,7 @@ return a JavaScript String. Note that in other cases the compiled script will co
 a `v8::Local<v8::String>`. Finally, with this local string handle we can call the method `to_rust_string_lossy` in order to convert into a Rust String. 
 
 Observe the following transformation:  
-Script -> Value -> Local\<v8::String\> -> (Rust) String. 
+`Script` -> `Value` -> `Local\<v8::String\>` -> (Rust) `String`. 
 
 Each of the methods: compile, run, to_string, and to_rust_string_lossy were associated with these transformations. Much of v8 programming, from my limited experience, deals with following these 
 chains of transformations.
