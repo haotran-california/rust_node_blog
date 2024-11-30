@@ -6,28 +6,20 @@ By Hao Tran
 In the previous article we talked about the code requried to run vanilla JavaScript with V8. In this article, we will be exploring 
 the code required to extend JavaScript beyond ECMAScript. 
 
-to run code which is provided by runtimes like Node.js  
-
-
-Here is Eric Wendal's definition of a JavaScript Runtime. 
-
-You can checkout his YouTube video on how to make Node.js from scratch using C++. He provides a Gitpod enviorment which has V8 and Libuv setup out the box. 
-
 
 Here is an example of code which can currently be executed by V8 and cannot. 
 
+## Main Feature 
+
+The previous article discussed a program which executed a vanilla Javascript file using a V8 embedding. This article will be exploring the code and concepts required to extend Javascript.
+Vanillia Javascript is defined by ECMAScript, the standard specification which defines the foundation of Javascript. When functions, objects, and other features are added which are not 
+explictly defined within ECMAScript this is extending Javascript.   
+
+Here is an example of a script which cannot be executed with the program from the previous article. `console.log()` is not defined in ECMAScript and therefore is able to be executed by V8.  
+
+`hello_world.js`
 ```javascript 
-function addTwoNumbers(a, b){
-    return (a + b);
-}
-
-addTwoNumbers(1+1);
-
-```
-
-
-
-```javascript 
+let msg = "Hello World";
 console.log("Hello World");
 
 ```
@@ -99,4 +91,11 @@ _return_object: v8::ReturnValue
 }
 ```
 
-Note that this program now includes two additional sections `\\BIND CONSOLE TO GLOBAL` and `DEFINE CALLBACK`. 
+Note that this program now includes two additional sections `\\BIND CONSOLE TO GLOBAL` and `\\DEFINE CALLBACK`. 
+
+
+
+
+
+
+

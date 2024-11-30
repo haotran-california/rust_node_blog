@@ -11,7 +11,7 @@ My personal opinion is that these diagrams are easy to remember as broad concept
 
 ### Main Feature
 
-The program which we will be analyzing today will solve the following problem. How to run a vanilla Javascript file within a program that contains an embedded V8 instance?  
+The program which we will be analyzing today will solve the following problem. How to run a vanilla Javascript file via an embedded V8 instance?  
 
 Now lets take a look at the `foo.js` and `execute_vanilla_javascript.rs`.   
 
@@ -59,20 +59,19 @@ println!("Results: {}", result.to_rust_string_lossy(scope));
 }
 ```
 
-With the code being shown above, here are the main concepts which we will be exploring today. 
+The program above has three sections. The `//INITIALIZE V8` section contains all of the V8 Infrastructure. While the `//READ FILE` and `//EXECUTE CODE` sections combined 
+contain the V8 Bridge and V8 State and Memory Management.  
 
-### Main Concepts 
+You'll notice that the code below is written in Rust and draws from the `rusty_v8` library. This is due to the ease of embedding V8 in Rust applications which is a one line download. 
+In contrast embedding in C++ programs requires an extensive process. Many of the concepts and diagrams present in these articles will be language agonostic.  
+
+# Main Concepts 
 
 1. **V8 Infrastructure: Platform, Isolate, Context** 
 2. **V8 Bridge: Javascript <---> Rust**
-3. **V8 Handles & Scopes**
+3. **V8 State and Memory Management**
 
-The main concepts roughly map to the various sections of the program. V8 Infrastructure maps to the `//INITIALIZE V8` section. While the V8 Bridge and 
-V8 Handles concepts maps to the `//READ FILE` and `//EXECUTE CODE` sections combined. You'll notice that the code below is written in Rust and draws from the `rusty_v8` 
-library. This is due to the ease of embedding V8 in Rust applications which is a one line download. In contrast embedding in C++ programs requires an extensive process. 
-If this is your first time reading Rust I encourage you to keep reading as the concepts, diagrams, and most of the writing will be language agonostic. 
-
-## V8 Infrastructure: Platform, Isolate, and Context 
+## 1. V8 Infrastructure: Platform, Isolate, and Context 
 
 1. **Platform**
    The V8 platform is the interface that manages operating system-level resources such as threads and tasks. It provides the execution environment for isolates to run.
@@ -104,7 +103,7 @@ Notice that Node has a single isolate and a single context.
 These diagrams come directly from Felipe Mantilla with my own minor modification. His Medium aritcle is linked [here](https://medium.com/@felipemantillagomez/recreating-nodejs-from-scratch-chapter-3-v8-hello-world-main-concepts-explained-58d58676db36)
 <!-- this feels a bit sparse, I need to draw some conclusion from here, I want to use the defintion above to make some sort of arguement on an insight -->
 
-## V8 Bridge: Javascript <---> Rust 
+## 2. V8 Bridge: Javascript <---> Rust 
 
 There is a bijection between Javascript, as provided via V8 handles, and Rust. This means any code written in Javascript can be transformed into code which can be manipulated 
 by Rust. This also goes in the other direction. Any code written in Rust can be transformed in to code which can be manipulated by Javascript. There are caveuats however this 
@@ -164,19 +163,19 @@ value is whatever value can be returned results of a script.
 
 The concept of a bridge was inspired by Mayank Choubey's book [Deno Internals](https://choubey.gitbook.io/internals-of-deno). 
 
-## V8 Handles and Scopes
+## 3. V8 Handles and Scopes
 
 1. **HandleScope**  
-   A HandleScope is a memory management mechanism in V8 that temporarily holds references to objects. When the scope is exited, the handles created within it are automatically deallocated.
+A HandleScope is a memory management mechanism in V8 that temporarily holds references to objects. When the scope is exited, the handles created within it are automatically deallocated.
 
 2. **Local**  
-   A Local handle is a temporary reference to a V8 object, valid only within a HandleScope. Once the scope is exited, the handle becomes invalid.
+A Local handle is a temporary reference to a V8 object, valid only within a HandleScope. Once the scope is exited, the handle becomes invalid.
 
 3. **Persistent**  
-   A Persistent handle is a long-lived reference to a V8 object. It remains valid outside of HandleScope and must be explicitly disposed of to free memory.
+A Persistent handle is a long-lived reference to a V8 object. It remains valid outside of HandleScope and must be explicitly disposed of to free memory.
 
 4. **ContextScope**  
-   A ContextScope ties operations to a specific V8 context. It ensures all operations occur in the correct context and restores the previous context when exited.
+A ContextScope ties operations to a specific V8 context. It ensures all operations occur in the correct context and restores the previous context when exited.
 
 Of these various objects, the most commonly created in programming with V8 is `Local`. 
 
@@ -237,5 +236,4 @@ craft a mental model but not often manipulated by the programmer beyond initiali
 handles comprise a large portion of the code manipulated by the programmer. The mental model is necessary to both manipulate the Rust and Javascript bijection as well as deal with more 
 complex state and memory management in implementing more advanced features. The next article will explore how to *extend* Javascript through implementing bindings within the runtime.   
 
-If you are interested in reading more about V8 my suggestion is checkout the offical docs which are linked 
-![here](https://v8docs.nodesource.com/node-22.4/).
+If you are interested in reading more about V8 my suggestion is checkout the offical docs which are linked [here](https://v8docs.nodesource.com/node-22.4/).
